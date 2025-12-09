@@ -1,5 +1,950 @@
 <!doctype html>
 <html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Mon Parcours Pro - Auto-positionnement</title>
+  
+  <!-- SDKs (Mocked if not present for standalone testing) -->
+  <script src="/_sdk/element_sdk.js" onerror="window.elementSdkMissing=true"></script>
+  <script src="/_sdk/data_sdk.js" onerror="window.dataSdkMissing=true"></script>
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@300;400;600;700&family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --primary: #E31E52;
+      --secondary: #FFD93D;
+      --accent: #40E0D0;
+      --bg-gradient: linear-gradient(135deg, #FFF6F8 0%, #FFFFFF 100%);
+    }
+
+    body {
+      font-family: 'Poppins', sans-serif;
+      background: var(--bg-gradient);
+      color: #2D3748;
+      -webkit-tap-highlight-color: transparent;
+      overflow-x: hidden;
+    }
+
+    h1, h2, h3, .font-display {
+      font-family: 'Fredoka', sans-serif;
+    }
+
+    /* Background blobs */
+    .blob {
+      position: fixed;
+      filter: blur(40px);
+      z-index: 0;
+      opacity: 0.6;
+      animation: float 10s infinite ease-in-out;
+    }
+    .blob-1 { top: -10%; right: -10%; width: 300px; height: 300px; background: #FFD93D; animation-delay: 0s; }
+    .blob-2 { bottom: -10%; left: -10%; width: 250px; height: 250px; background: #40E0D0; animation-delay: 2s; }
+    .blob-3 { top: 40%; left: 20%; width: 150px; height: 150px; background: #E31E52; opacity: 0.1; animation-delay: 4s; }
+
+    @keyframes float {
+      0% { transform: translate(0, 0) scale(1); }
+      33% { transform: translate(20px, -30px) scale(1.1); }
+      66% { transform: translate(-10px, 20px) scale(0.9); }
+      100% { transform: translate(0, 0) scale(1); }
+    }
+
+    /* Card & Interface */
+    .glass-panel {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.5);
+      box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.05);
+    }
+
+    /* Progress Bar */
+    .progress-container {
+      background: #EDF2F7;
+      border-radius: 999px;
+      overflow: hidden;
+      height: 16px;
+      position: relative;
+    }
+    .progress-fill {
+      background: linear-gradient(90deg, #E31E52, #FFD93D);
+      height: 100%;
+      border-radius: 999px;
+      transition: width 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+      position: relative;
+    }
+    .progress-fill::after {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: linear-gradient(
+        45deg,
+        rgba(255, 255, 255, 0.2) 25%,
+        transparent 25%,
+        transparent 50%,
+        rgba(255, 255, 255, 0.2) 50%,
+        rgba(255, 255, 255, 0.2) 75%,
+        transparent 75%,
+        transparent
+      );
+      background-size: 20px 20px;
+      animation: moveStripe 1s linear infinite;
+    }
+    @keyframes moveStripe {
+      0% { background-position: 0 0; }
+      100% { background-position: 20px 20px; }
+    }
+
+    /* Option Buttons - Clickability & Gamification */
+    .option-card {
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      border: 2px solid transparent;
+      transform-origin: center;
+      cursor: pointer;
+    }
+    .option-card:active {
+      transform: scale(0.96);
+    }
+    .option-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 16px rgba(0,0,0,0.08);
+      border-color: #E2E8F0;
+    }
+    .option-card.selected {
+      background: #F0FDFA; /* Teal-50 */
+      border-color: #40E0D0;
+      box-shadow: 0 0 0 4px rgba(64, 224, 208, 0.2);
+    }
+    
+    /* Animations */
+    .slide-in-right { animation: slideInRight 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
+    .slide-in-left { animation: slideInLeft 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
+    .fade-in { animation: fadeIn 0.5s ease-out; }
+    .pop-in { animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+
+    @keyframes slideInRight {
+      from { opacity: 0; transform: translateX(20px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+    @keyframes slideInLeft {
+      from { opacity: 0; transform: translateX(-20px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes popIn {
+      from { opacity: 0; transform: scale(0.8); }
+      to { opacity: 1; transform: scale(1); }
+    }
+
+    /* Level Up Overlay */
+    .level-up-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(255,255,255,0.95);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 50;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s;
+    }
+    .level-up-overlay.active {
+      opacity: 1;
+      pointer-events: all;
+    }
+
+    /* Mobile specific adjustments */
+    @media (max-width: 640px) {
+      .option-card {
+        padding: 1rem;
+      }
+      .question-text {
+        font-size: 1.25rem;
+      }
+    }
+  </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4 relative">
+
+  <!-- Background Elements -->
+  <div class="blob blob-1"></div>
+  <div class="blob blob-2"></div>
+  <div class="blob blob-3"></div>
+
+  <!-- Main App Container -->
+  <div class="w-full max-w-2xl relative z-10">
+    
+    <!-- Header / Logo Area -->
+    <div class="text-center mb-6 fade-in">
+      <div class="inline-block bg-white p-2 rounded-full shadow-sm mb-2">
+        <!-- Placeholder for Logo -->
+        <div class="h-10 w-10 bg-gradient-to-br from-pink-500 to-yellow-400 rounded-full flex items-center justify-center text-white font-bold text-xl">
+          MP
+        </div>
+      </div>
+      <h1 class="text-xl font-bold text-gray-700 font-display">Mon Parcours Pro</h1>
+    </div>
+
+    <!-- Main Card -->
+    <div class="glass-panel rounded-3xl p-6 md:p-10 shadow-xl relative overflow-hidden min-h-[500px] flex flex-col transition-all duration-300" id="mainCard">
+      
+      <!-- WELCOME SCREEN -->
+      <div id="welcomeScreen" class="flex flex-col items-center justify-center h-full text-center space-y-8 py-8 fade-in">
+        <div class="text-6xl animate-bounce">👋</div>
+        <div class="space-y-4">
+          <h1 id="welcomeTitle" class="text-3xl md:text-4xl font-extrabold text-pink-600 font-display leading-tight">
+            Prêt à découvrir<br>ton profil ?
+          </h1>
+          <p class="text-gray-600 text-lg max-w-md mx-auto leading-relaxed">
+            Pas de jugement, juste 5 minutes pour faire le point sur ta situation et découvrir tes super-pouvoirs !
+          </p>
+        </div>
+        
+        <div class="grid grid-cols-2 gap-4 w-full max-w-sm mt-4">
+            <div class="bg-blue-50 p-3 rounded-2xl text-sm font-semibold text-blue-600">🎯 50 Questions</div>
+            <div class="bg-yellow-50 p-3 rounded-2xl text-sm font-semibold text-yellow-600">🏆 5 Niveaux</div>
+        </div>
+
+        <button id="startBtn" class="bg-gradient-to-r from-pink-600 to-pink-500 text-white font-bold text-xl py-4 px-10 rounded-full shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 w-full max-w-xs mt-4">
+          C'est parti ! 🚀
+        </button>
+      </div>
+
+      <!-- QUIZ SCREEN -->
+      <div id="quizScreen" class="hidden flex flex-col h-full">
+        <!-- Progress Header -->
+        <div class="mb-8">
+          <div class="flex justify-between items-end mb-2">
+            <span class="text-sm font-bold text-pink-600 uppercase tracking-wider" id="levelIndicator">Niveau 1/5</span>
+            <span class="text-xs font-semibold text-gray-400" id="progressText">0%</span>
+          </div>
+          <div class="progress-container shadow-inner">
+            <div id="progressFill" class="progress-fill w-0"></div>
+          </div>
+        </div>
+
+        <!-- Question Area -->
+        <div class="flex-grow flex flex-col justify-center">
+          <div id="questionContainer" class="slide-in-right">
+            <div class="inline-block bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-xs font-bold mb-4 animate-pulse">
+              Question <span id="qIndex">1</span>/50
+            </div>
+            <h2 id="questionText" class="text-2xl md:text-3xl font-bold text-gray-800 mb-8 font-display leading-snug">
+              <!-- Question Text Here -->
+            </h2>
+            
+            <div id="optionsGrid" class="grid grid-cols-1 gap-3">
+              <!-- Options injected here -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Navigation -->
+        <div class="mt-8 flex justify-between items-center pt-4 border-t border-gray-100">
+          <button id="prevBtn" class="text-gray-400 hover:text-gray-600 font-semibold text-sm py-2 px-4 transition-colors hidden">
+            ← Retour
+          </button>
+          <div class="flex-grow"></div> 
+          <!-- Next button is mostly automatic, but we keep it for accessibility or specific flows -->
+        </div>
+
+        <!-- Level Up Overlay -->
+        <div id="levelUpOverlay" class="level-up-overlay rounded-3xl text-center p-8">
+          <div class="text-6xl mb-4 animate-bounce">🎉</div>
+          <h2 class="text-3xl font-bold text-pink-600 mb-2 font-display">Niveau Validé !</h2>
+          <p class="text-gray-600 text-lg mb-6" id="levelUpMsg">Continue comme ça, tu gères !</p>
+          <button id="nextLevelBtn" class="bg-accent text-teal-900 font-bold py-3 px-8 rounded-full shadow-md hover:bg-teal-300 transition-colors">
+            Niveau Suivant →
+          </button>
+        </div>
+      </div>
+
+      <!-- LOADING SCREEN -->
+      <div id="loadingScreen" class="hidden absolute inset-0 bg-white/90 z-50 flex flex-col items-center justify-center rounded-3xl">
+        <div class="w-16 h-16 border-4 border-pink-200 border-t-pink-600 rounded-full animate-spin mb-4"></div>
+        <p class="text-lg font-semibold text-gray-600 animate-pulse">Analyse de tes super-pouvoirs...</p>
+      </div>
+
+      <!-- RESULTS SCREEN -->
+      <div id="resultsScreen" class="hidden fade-in">
+        <div class="text-center mb-8">
+            <div class="text-6xl mb-4">🏆</div>
+            <h2 id="profileTitle" class="text-3xl font-bold text-gray-800 font-display mb-2">Ton Profil</h2>
+            <p id="profileSubtitle" class="text-xl text-pink-600 font-medium"></p>
+        </div>
+
+        <!-- Results Scrollable Area -->
+        <div id="resultsContent" class="space-y-6 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
+            <!-- Dynamic Content -->
+        </div>
+
+        <div class="mt-6 pt-6 border-t border-gray-100">
+            <button id="restartBtn" class="w-full bg-gray-100 text-gray-600 font-bold py-4 rounded-xl hover:bg-gray-200 transition-colors flex items-center justify-center gap-2">
+                <span>🔄</span> Recommencer le test
+            </button>
+        </div>
+      </div>
+
+    </div>
+    
+    <!-- Footer -->
+    <div class="text-center mt-6 text-xs text-gray-400">
+      <p>Outil d'auto-positionnement • Mission Locale</p>
+    </div>
+  </div>
+
+  <!-- Confetti Canvas -->
+  <canvas id="confettiCanvas" class="fixed inset-0 pointer-events-none z-50"></canvas>
+
+  <script>
+    // --- MOCK SDKs for Standalone Preview ---
+    // This ensures the tool works even without the parent environment
+    if (typeof window.dataSdk === 'undefined' || window.dataSdkMissing) {
+        window.dataSdk = {
+            init: async () => ({ isOk: true }),
+            create: async (data) => {
+                console.log("Data saved locally:", data);
+                return { isOk: true };
+            }
+        };
+    }
+    if (typeof window.elementSdk === 'undefined' || window.elementSdkMissing) {
+        window.elementSdk = {
+            init: (config) => console.log("Element SDK Init", config)
+        };
+    }
+
+    // --- APP DATA ---
+    // Grouping questions for "Levels"
+    // Level 1: État d'esprit (1-10)
+    // Level 2: Compétences & Avenir (11-20)
+    // Level 3: Bien-être & Santé (21-30)
+    // Level 4: Savoirs & Autonomie (31-40)
+    // Level 5: Projection (41-50)
+    
+    const questions = [
+      // NIVEAU 1 : ÉTAT D'ESPRIT
+      { id: 1, text: "Comment te sens-tu en ce moment dans ta vie ?", emoji: "💭", options: [{ emoji: "😊", text: "Plutôt bien, je suis serein·e", value: "good" }, { emoji: "😐", text: "Ça va, ni bien ni mal", value: "okay" }, { emoji: "😕", text: "Un peu perdu·e ou stressé·e", value: "lost" }, { emoji: "😔", text: "Pas très bien en ce moment", value: "difficult" }] },
+      { id: 2, text: "Qu'est-ce qui te préoccupe le plus actuellement ?", emoji: "🤔", options: [{ emoji: "💰", text: "Ma situation financière", value: "money" }, { emoji: "🎯", text: "Mon avenir professionnel", value: "future" }, { emoji: "🏠", text: "Mon logement / famille", value: "housing" }, { emoji: "💚", text: "Ma santé / bien-être", value: "health" }, { emoji: "✨", text: "Rien de particulier", value: "nothing" }] },
+      { id: 3, text: "Arrives-tu à te lever le matin avec un but ?", emoji: "🌅", options: [{ emoji: "✅", text: "Oui, j'ai des choses prévues", value: "yes_planned" }, { emoji: "🤷", text: "Parfois, ça dépend", value: "sometimes" }, { emoji: "😴", text: "Non, routine monotone", value: "no_routine" }, { emoji: "😞", text: "C'est dur de me lever", value: "difficult" }] },
+      { id: 4, text: "As-tu des personnes sur qui compter ?", emoji: "👥", options: [{ emoji: "❤️", text: "Oui, soutien proche", value: "strong_support" }, { emoji: "👍", text: "Oui, quelques personnes", value: "some_support" }, { emoji: "🤷", text: "Pas vraiment", value: "little_support" }, { emoji: "😔", text: "Non, je me sens isolé·e", value: "isolated" }] },
+      { id: 5, text: "Rencontrer de nouvelles personnes, c'est...", emoji: "🤝", options: [{ emoji: "😊", text: "Facile, j'aime ça", value: "comfortable" }, { emoji: "😐", text: "Ça dépend du moment", value: "depends" }, { emoji: "😰", text: "Stressant ou timide", value: "stressed" }, { emoji: "😨", text: "Angoissant, j'évite", value: "anxious" }] },
+      { id: 6, text: "Fais-tu des activités régulières (sport, loisirs) ?", emoji: "⚽", options: [{ emoji: "✅", text: "Oui, régulièrement", value: "regular" }, { emoji: "👍", text: "De temps en temps", value: "occasional" }, { emoji: "📺", text: "Rarement", value: "rarely" }, { emoji: "🛋️", text: "Non, pas du tout", value: "nothing" }] },
+      { id: 7, text: "Comment gères-tu ton budget ?", emoji: "💳", options: [{ emoji: "✅", text: "Je gère bien", value: "manage_well" }, { emoji: "😅", text: "C'est serré mais ça va", value: "manage_tight" }, { emoji: "😰", text: "C'est difficile, je galère", value: "struggle" }, { emoji: "🚫", text: "Pas de revenus", value: "no_income" }] },
+      { id: 8, text: "As-tu un endroit stable où dormir ?", emoji: "🏡", options: [{ emoji: "🏠", text: "Oui (famille/parents)", value: "family" }, { emoji: "🔑", text: "Oui, mon logement", value: "own_place" }, { emoji: "🤝", text: "Hébergé·e par ami(e)s", value: "friend" }, { emoji: "😔", text: "Non, c'est instable", value: "unstable" }] },
+      { id: 9, text: "Ton niveau d'énergie au quotidien ?", emoji: "🔋", options: [{ emoji: "⚡", text: "J'ai la pêche !", value: "energetic" }, { emoji: "😐", text: "Ça va, variable", value: "variable" }, { emoji: "😴", text: "Souvent fatigué·e", value: "tired" }, { emoji: "😞", text: "Épuisé·e", value: "exhausted" }] },
+      { id: 10, text: "Qu'est-ce qui te motive le plus ?", emoji: "✨", options: [{ emoji: "👥", text: "Voir des gens", value: "social" }, { emoji: "🎨", text: "Créer des choses", value: "creative" }, { emoji: "🎯", text: "Réussir mes objectifs", value: "goals" }, { emoji: "😔", text: "Je ne sais pas trop", value: "unsure" }] },
+      
+      // NIVEAU 2 : COMPÉTENCES
+      { id: 11, text: "Ton expérience du travail ?", emoji: "💼", options: [{ emoji: "✅", text: "Plusieurs expériences", value: "multiple" }, { emoji: "👍", text: "Quelques petits boulots", value: "some" }, { emoji: "🌱", text: "Juste des stages", value: "internship" }, { emoji: "❌", text: "Aucune pour l'instant", value: "never" }] },
+      { id: 12, text: "Ta plus grande peur au travail ?", emoji: "😰", options: [{ emoji: "👥", text: "Les collègues / relations", value: "people" }, { emoji: "⏰", text: "Les horaires / rythme", value: "schedule" }, { emoji: "🤯", text: "Ne pas y arriver", value: "competence" }, { emoji: "😊", text: "Aucune peur spéciale", value: "nothing" }] },
+      { id: 13, text: "Le frein principal pour travailler ?", emoji: "🚧", options: [{ emoji: "🏥", text: "Santé", value: "health" }, { emoji: "🚗", text: "Transport", value: "transport" }, { emoji: "😔", text: "Confiance en soi", value: "confidence" }, { emoji: "❓", text: "Je suis perdu·e", value: "lost" }, { emoji: "✅", text: "Aucun frein", value: "nothing" }] },
+      { id: 14, text: "As-tu une idée de métier ?", emoji: "💡", options: [{ emoji: "✨", text: "Oui, idée précise", value: "clear" }, { emoji: "🤔", text: "Quelques pistes", value: "ideas" }, { emoji: "🗺️", text: "Je cherche encore", value: "searching" }, { emoji: "❓", text: "Aucune idée", value: "no_idea" }] },
+      { id: 15, text: "Prêt·e pour une formation ?", emoji: "📚", options: [{ emoji: "🚀", text: "Oui, motivé·e !", value: "motivated" }, { emoji: "🤷", text: "Peut-être", value: "maybe" }, { emoji: "😕", text: "Peur que ce soit dur", value: "afraid" }, { emoji: "❌", text: "Pas pour le moment", value: "not_now" }] },
+      { id: 16, text: "À l'aise avec le numérique ?", emoji: "💻", options: [{ emoji: "😊", text: "Oui, je gère", value: "comfortable" }, { emoji: "📱", text: "Juste sur téléphone", value: "phone_only" }, { emoji: "😕", text: "Pas très à l'aise", value: "uncomfortable" }, { emoji: "❌", text: "Pas d'accès facile", value: "no_access" }] },
+      { id: 17, text: "Ta capacité de concentration ?", emoji: "🎯", options: [{ emoji: "✅", text: "Bonne", value: "yes" }, { emoji: "😐", text: "Ça dépend du sujet", value: "depends" }, { emoji: "😰", text: "Difficile", value: "difficult" }, { emoji: "🤯", text: "Très difficile", value: "very_difficult" }] },
+      { id: 18, text: "Face à un problème, tu...", emoji: "🧩", options: [{ emoji: "💪", text: "Cherches une solution", value: "solve" }, { emoji: "🤝", text: "Demandes de l'aide", value: "ask_help" }, { emoji: "😞", text: "Te décourages", value: "discouraged" }, { emoji: "🙈", text: "L'évites", value: "avoid" }] },
+      { id: 19, text: "Te fixes-tu des objectifs ?", emoji: "📈", options: [{ emoji: "✅", text: "Oui, souvent", value: "often" }, { emoji: "👍", text: "Parfois", value: "sometimes" }, { emoji: "😕", text: "Rarement", value: "rarely" }, { emoji: "❌", text: "Jamais", value: "never" }] },
+      { id: 20, text: "Ta forme physique ?", emoji: "🏃", options: [{ emoji: "💪", text: "En forme", value: "good" }, { emoji: "😐", text: "Ça va", value: "okay" }, { emoji: "😴", text: "Fatigué·e", value: "tired" }, { emoji: "🏥", text: "Problèmes de santé", value: "health_issues" }] },
+
+      // NIVEAU 3 : SANTÉ & MODE DE VIE
+      { id: 21, text: "Ton sommeil ?", emoji: "😴", options: [{ emoji: "✅", text: "Je dors bien", value: "well" }, { emoji: "😐", text: "Variable", value: "variable" }, { emoji: "😰", text: "Difficile", value: "difficulty" }, { emoji: "🌙", text: "Décalé (nuit/jour)", value: "reversed" }] },
+      { id: 22, text: "Ton alimentation ?", emoji: "🍽️", options: [{ emoji: "✅", text: "Bien, à ma faim", value: "yes" }, { emoji: "😐", text: "Pas très équilibré", value: "unbalanced" }, { emoji: "😕", text: "Parfois c'est juste", value: "sometimes" }, { emoji: "😔", text: "Pas assez", value: "no" }] },
+      { id: 23, text: "Suivi psychologique ?", emoji: "🧠", options: [{ emoji: "✅", text: "Oui, ça aide", value: "yes_helpful" }, { emoji: "🤷", text: "J'ai arrêté", value: "yes_stopped" }, { emoji: "❌", text: "Jamais", value: "never" }, { emoji: "🤔", text: "J'aimerais bien", value: "interested" }] },
+      { id: 24, text: "Moments de tristesse/anxiété ?", emoji: "💙", options: [{ emoji: "❌", text: "Rarement", value: "rarely" }, { emoji: "😐", text: "Parfois", value: "sometimes" }, { emoji: "😔", text: "Souvent", value: "often" }, { emoji: "😞", text: "Tout le temps", value: "always" }] },
+      { id: 25, text: "Permis de conduire ?", emoji: "🚗", options: [{ emoji: "✅", text: "Oui + véhicule", value: "yes_vehicle" }, { emoji: "🔑", text: "Oui, sans véhicule", value: "yes_no_vehicle" }, { emoji: "📚", text: "En cours", value: "in_progress" }, { emoji: "❌", text: "Non", value: "no" }] },
+      { id: 26, text: "Tes déplacements ?", emoji: "🚶", options: [{ emoji: "🚗", text: "Voiture", value: "car" }, { emoji: "🚌", text: "Transports en commun", value: "public" }, { emoji: "🚴", text: "Vélo / Pied", value: "bike_walk" }, { emoji: "😔", text: "Compliqué", value: "difficult" }] },
+      { id: 27, text: "Sans ton téléphone, tu tiens...", emoji: "📱", options: [{ emoji: "✅", text: "Des heures", value: "hours" }, { emoji: "😐", text: "1 heure max", value: "one_hour" }, { emoji: "😅", text: "30 minutes", value: "thirty_min" }, { emoji: "🤳", text: "Impossible", value: "few_minutes" }] },
+      { id: 28, text: "Temps sur les écrans/jeux ?", emoji: "🎮", options: [{ emoji: "❌", text: "Très peu", value: "little" }, { emoji: "😐", text: "Raisonnable", value: "moderate" }, { emoji: "😅", text: "Beaucoup", value: "much" }, { emoji: "🤯", text: "Excessif", value: "excessive" }] },
+      { id: 29, text: "Alcool / Tabac / Autres ?", emoji: "🚬", options: [{ emoji: "❌", text: "Non", value: "no" }, { emoji: "😐", text: "Occasionnel", value: "occasional" }, { emoji: "😕", text: "Difficile à gérer", value: "difficulty" }, { emoji: "🤐", text: "Je passe", value: "no_answer" }] },
+      { id: 30, text: "Problèmes avec la justice ?", emoji: "⚖️", options: [{ emoji: "✅", text: "Non", value: "no" }, { emoji: "📅", text: "Par le passé", value: "past" }, { emoji: "⚠️", text: "En cours", value: "current" }, { emoji: "🤐", text: "Je passe", value: "no_answer" }] },
+
+      // NIVEAU 4 : SAVOIRS & AUTONOMIE
+      { id: 31, text: "Lire et écrire ?", emoji: "📖", options: [{ emoji: "✅", text: "Facile", value: "fluent" }, { emoji: "😐", text: "Quelques difficultés", value: "some_difficulty" }, { emoji: "😕", text: "Difficile", value: "difficult" }, { emoji: "❌", text: "Très difficile", value: "very_difficult" }] },
+      { id: 32, text: "Calculer ?", emoji: "🔢", options: [{ emoji: "✅", text: "Facile", value: "easy" }, { emoji: "😐", text: "Besoin de temps", value: "with_time" }, { emoji: "😕", text: "Compliqué", value: "difficult" }, { emoji: "❌", text: "Très difficile", value: "very_difficult" }] },
+      { id: 33, text: "Parcours scolaire ?", emoji: "🎓", options: [{ emoji: "📚", text: "Collège", value: "middle_school" }, { emoji: "🎒", text: "CAP / BEP", value: "vocational" }, { emoji: "📖", text: "Bac", value: "high_school" }, { emoji: "🎯", text: "Études supérieures", value: "higher_ed" }] },
+      { id: 34, text: "L'école, c'était comment ?", emoji: "🏫", options: [{ emoji: "😊", text: "Plutôt bien", value: "good" }, { emoji: "😐", text: "Moyen", value: "okay" }, { emoji: "😕", text: "Difficile", value: "difficult" }, { emoji: "😞", text: "Un cauchemar", value: "very_difficult" }] },
+      { id: 35, text: "Reprendre une formation ?", emoji: "🎒", options: [{ emoji: "✨", text: "Oui, vite !", value: "yes_soon" }, { emoji: "🤔", text: "Plus tard", value: "yes_later" }, { emoji: "🤷", text: "Je ne sais pas", value: "unsure" }, { emoji: "❌", text: "Non merci", value: "no" }] },
+      { id: 36, text: "Papiers administratifs ?", emoji: "📝", options: [{ emoji: "✅", text: "Je gère", value: "confident" }, { emoji: "😐", text: "Avec de l'aide", value: "with_help" }, { emoji: "😰", text: "Stressant", value: "stressed" }, { emoji: "🚫", text: "Je bloque", value: "blocked" }] },
+      { id: 37, text: "Sais-tu où trouver de l'aide ?", emoji: "🗺️", options: [{ emoji: "✅", text: "Oui (ML, Pôle Emploi...)", value: "know" }, { emoji: "🤷", text: "Vaguement", value: "heard" }, { emoji: "❓", text: "Non", value: "dont_know" }, { emoji: "😕", text: "J'ose pas y aller", value: "afraid" }] },
+      { id: 38, text: "Ancienneté Mission Locale ?", emoji: "⏳", options: [{ emoji: "🆕", text: "< 3 mois", value: "new" }, { emoji: "📅", text: "3-6 mois", value: "recent" }, { emoji: "📆", text: "6 mois - 1 an", value: "established" }, { emoji: "🦖", text: "> 1 an", value: "long_term" }] },
+      { id: 39, text: "Attente de l'accompagnement ?", emoji: "🎯", options: [{ emoji: "💼", text: "Un emploi", value: "job" }, { emoji: "📚", text: "Une formation", value: "training" }, { emoji: "💡", text: "Mon projet", value: "discovery" }, { emoji: "🤝", text: "Du soutien", value: "support" }] },
+      { id: 40, text: "Dans 6 mois, tu es où ?", emoji: "🔮", options: [{ emoji: "💼", text: "En emploi", value: "employed" }, { emoji: "📚", text: "En formation", value: "training" }, { emoji: "🌱", text: "En test", value: "trying" }, { emoji: "🤷", text: "Je ne sais pas", value: "no_idea" }] },
+
+      // NIVEAU 5 : PROJECTION
+      { id: 41, text: "Motivation du matin ?", emoji: "☀️", options: [{ emoji: "💰", text: "L'argent", value: "money" }, { emoji: "👥", text: "Le social", value: "social" }, { emoji: "🎯", text: "Un projet", value: "purpose" }, { emoji: "😔", text: "Rien", value: "unsure" }] },
+      { id: 42, text: "Activité gratuite demain ?", emoji: "🎫", options: [{ emoji: "✨", text: "Go !", value: "yes_eager" }, { emoji: "🤔", text: "Ça dépend", value: "depends" }, { emoji: "🤷", text: "Peut-être", value: "maybe" }, { emoji: "❌", text: "Non", value: "no" }] },
+      { id: 43, text: "Travail seul ou équipe ?", emoji: "👥", options: [{ emoji: "👥", text: "Équipe", value: "team" }, { emoji: "🤝", text: "Les deux", value: "both" }, { emoji: "👤", text: "Seul·e", value: "alone" }, { emoji: "🤷", text: "Sais pas", value: "unsure" }] },
+      { id: 44, text: "Le plus important au travail ?", emoji: "💎", options: [{ emoji: "💰", text: "Salaire", value: "salary" }, { emoji: "🏖️", text: "Horaires/Vie perso", value: "balance" }, { emoji: "❤️", text: "Ambiance", value: "atmosphere" }, { emoji: "✨", text: "Le sens", value: "meaning" }] },
+      { id: 45, text: "Confiance en toi ?", emoji: "🦁", options: [{ emoji: "✨", text: "Oui !", value: "confident" }, { emoji: "🤷", text: "Variable", value: "sometimes" }, { emoji: "😕", text: "Pas trop", value: "low" }, { emoji: "😞", text: "Pas du tout", value: "very_low" }] },
+      { id: 46, text: "Qu'est-ce qui te ferait plaisir ?", emoji: "🎁", options: [{ emoji: "💰", text: "Argent", value: "money" }, { emoji: "👥", text: "Amis/Famille", value: "social" }, { emoji: "🎯", text: "Projet concret", value: "project" }, { emoji: "😌", text: "Être zen", value: "wellbeing" }] },
+      { id: 47, text: "Ta situation en un mot ?", emoji: "🏷️", options: [{ emoji: "😊", text: "Transition", value: "transition" }, { emoji: "😔", text: "Bloqué·e", value: "stuck" }, { emoji: "🤔", text: "Perdu·e", value: "lost" }, { emoji: "✨", text: "Espoir", value: "hopeful" }] },
+      { id: 48, text: "Te sens-tu jugé·e ?", emoji: "👀", options: [{ emoji: "❌", text: "Non", value: "no" }, { emoji: "🤷", text: "Parfois", value: "sometimes" }, { emoji: "😔", text: "Souvent", value: "often" }, { emoji: "😞", text: "Toujours", value: "always" }] },
+      { id: 49, text: "Un coup de baguette magique ?", emoji: "🪄", options: [{ emoji: "💼", text: "Job de rêve", value: "job" }, { emoji: "❤️", text: "Bien-être", value: "wellbeing" }, { emoji: "💰", text: "Richesse", value: "money" }, { emoji: "🏠", text: "Stabilité", value: "stability" }] },
+      { id: 50, text: "Prêt·e à avancer ?", emoji: "🚀", options: [{ emoji: "✨", text: "Oui !", value: "ready" }, { emoji: "🤔", text: "Avec de l'aide", value: "with_support" }, { emoji: "😕", text: "Je ne sais pas", value: "unsure" }, { emoji: "❌", text: "Pas encore", value: "not_now" }] }
+    ];
+
+    // LEVEL CONFIGURATION
+    const LEVEL_SIZE = 10;
+    const LEVEL_MESSAGES = [
+        "C'est un excellent début ! On commence à mieux cerner ton état d'esprit.",
+        "Super ! Tes compétences et ton passé se dessinent.",
+        "Parfait ! Ton bien-être est essentiel pour la suite.",
+        "Tu avances bien ! L'autonomie est une clé importante.",
+        "Dernière ligne droite ! Regardons vers l'avenir."
+    ];
+
+    // STATE
+    let currentStep = 0;
+    let responses = {};
+    let sessionId = null;
+
+    // --- INITIALIZATION ---
+    document.addEventListener('DOMContentLoaded', () => {
+        initializeApp();
+    });
+
+    async function initializeApp() {
+        await window.dataSdk.init();
+        
+        // Element SDK Logic
+        window.elementSdk.init({
+            defaultConfig: { app_title: "Mon Parcours Pro", welcome_title: "Prêt à découvrir ton profil ?", start_button: "C'est parti !" },
+            onConfigChange: (config) => {
+                document.getElementById('welcomeTitle').innerHTML = config.welcome_title || "Prêt à découvrir<br>ton profil ?";
+                document.getElementById('startBtn').innerText = (config.start_button || "C'est parti !") + " 🚀";
+            }
+        });
+
+        document.getElementById('startBtn').addEventListener('click', startQuiz);
+        document.getElementById('prevBtn').addEventListener('click', previousQuestion);
+        document.getElementById('nextLevelBtn').addEventListener('click', closeLevelOverlay);
+        document.getElementById('restartBtn').addEventListener('click', restartQuiz);
+    }
+
+    // --- GAME LOGIC ---
+
+    function startQuiz() {
+        sessionId = 'session_' + Date.now();
+        currentStep = 0;
+        responses = {};
+        
+        document.getElementById('welcomeScreen').classList.add('hidden');
+        document.getElementById('quizScreen').classList.remove('hidden');
+        
+        showQuestion(currentStep);
+    }
+
+    function showQuestion(index) {
+        const question = questions[index];
+        const currentLevel = Math.floor(index / LEVEL_SIZE) + 1;
+        
+        // Update Progress
+        const progress = ((index) / questions.length) * 100;
+        document.getElementById('progressFill').style.width = `${progress}%`;
+        document.getElementById('progressText').innerText = `${Math.round(progress)}%`;
+        document.getElementById('levelIndicator').innerText = `Niveau ${currentLevel}/5`;
+        document.getElementById('qIndex').innerText = index + 1;
+
+        // Animate Question Transition
+        const container = document.getElementById('questionContainer');
+        container.classList.remove('slide-in-right', 'slide-in-left');
+        void container.offsetWidth; // trigger reflow
+        container.classList.add('slide-in-right');
+
+        // Render Question
+        document.getElementById('questionText').innerHTML = `${question.emoji} ${question.text}`;
+        const optionsGrid = document.getElementById('optionsGrid');
+        optionsGrid.innerHTML = '';
+
+        question.options.forEach((option, i) => {
+            const btn = document.createElement('div');
+            btn.className = `option-card bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex items-center space-x-4 hover:bg-teal-50`;
+            btn.style.animationDelay = `${i * 50}ms`; // Staggered animation
+            btn.classList.add('pop-in');
+            
+            // Check state
+            if (responses[question.id] === option.value) {
+                btn.classList.add('selected');
+            }
+
+            btn.innerHTML = `
+                <span class="text-3xl filter drop-shadow-sm">${option.emoji}</span>
+                <span class="font-medium text-lg text-gray-700 flex-grow">${option.text}</span>
+                <div class="w-6 h-6 rounded-full border-2 border-gray-200 flex items-center justify-center selection-circle">
+                    ${responses[question.id] === option.value ? '<div class="w-3 h-3 bg-teal-400 rounded-full"></div>' : ''}
+                </div>
+            `;
+            
+            btn.onclick = () => selectOption(question.id, option.value, btn);
+            optionsGrid.appendChild(btn);
+        });
+
+        // Navigation state
+        document.getElementById('prevBtn').style.visibility = index === 0 ? 'hidden' : 'visible';
+    }
+
+    function selectOption(questionId, value, clickedBtn) {
+        // Visual selection
+        const allBtns = document.getElementById('optionsGrid').children;
+        for (let btn of allBtns) {
+            btn.classList.remove('selected');
+            btn.querySelector('.selection-circle').innerHTML = '';
+        }
+        clickedBtn.classList.add('selected');
+        clickedBtn.querySelector('.selection-circle').innerHTML = '<div class="w-3 h-3 bg-teal-400 rounded-full"></div>';
+
+        responses[questionId] = value;
+
+        // Auto advance after short delay
+        setTimeout(() => nextQuestion(), 400);
+    }
+
+    function previousQuestion() {
+        if (currentStep > 0) {
+            currentStep--;
+            showQuestion(currentStep);
+        }
+    }
+
+    async function nextQuestion() {
+        const nextStep = currentStep + 1;
+        
+        // Check for Level Up (every 10 questions)
+        if (nextStep < questions.length && nextStep % LEVEL_SIZE === 0) {
+            showLevelUp(Math.floor(nextStep / LEVEL_SIZE));
+            currentStep++;
+            // Don't show question yet, wait for overlay close
+        } else if (nextStep < questions.length) {
+            currentStep++;
+            showQuestion(currentStep);
+        } else {
+            finishQuiz();
+        }
+    }
+
+    function showLevelUp(levelCompleted) {
+        const overlay = document.getElementById('levelUpOverlay');
+        const msg = document.getElementById('levelUpMsg');
+        
+        msg.innerText = LEVEL_MESSAGES[levelCompleted - 1] || "Bravo !";
+        overlay.classList.add('active');
+        
+        // Simple confetti burst
+        fireConfetti();
+    }
+
+    function closeLevelOverlay() {
+        document.getElementById('levelUpOverlay').classList.remove('active');
+        showQuestion(currentStep);
+    }
+
+    async function finishQuiz() {
+        document.getElementById('quizScreen').classList.add('hidden');
+        document.getElementById('loadingScreen').classList.remove('hidden');
+        document.getElementById('loadingScreen').classList.add('flex');
+
+        // Simulate network delay
+        setTimeout(async () => {
+            // Save data
+            await window.dataSdk.create({
+                id: sessionId,
+                timestamp: new Date().toISOString(),
+                current_step: currentStep,
+                responses: JSON.stringify(responses)
+            });
+
+            document.getElementById('loadingScreen').classList.add('hidden');
+            document.getElementById('loadingScreen').classList.remove('flex');
+            showResults();
+        }, 1500);
+    }
+
+    // --- RESULTS LOGIC (Same algorithms, better display) ---
+
+    function showResults() {
+        const profile = analyzeProfile();
+        
+        document.getElementById('resultsScreen').classList.remove('hidden');
+        document.getElementById('profileTitle').innerText = profile.title;
+        document.getElementById('profileSubtitle').innerText = profile.subtitle;
+
+        // Launch big confetti
+        fireConfetti(true);
+
+        const content = document.getElementById('resultsContent');
+        content.innerHTML = `
+            ${renderSection('🌟 Axes Fondamentaux', profile.lifeSkills, true)}
+            ${renderSection('🎯 Compétences Thématiques', profile.thematicSkills)}
+            ${renderStrengthsAndImprovements(profile.improvements)}
+            ${renderParcours(profile.parcours)}
+            ${renderContact()}
+        `;
+    }
+
+    function renderSection(title, items, isLifeSkill = false) {
+        return `
+            <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+                <h3 class="text-xl font-bold text-gray-800 mb-4 font-display">${title}</h3>
+                <div class="space-y-4">
+                    ${items.map(item => `
+                        <div>
+                            <div class="flex items-center justify-between mb-1">
+                                <div class="flex items-center gap-2">
+                                    <span class="text-2xl">${item.emoji}</span>
+                                    <span class="font-bold text-gray-700">${item.label}</span>
+                                </div>
+                                <span class="text-pink-600 font-bold">${item.value}/5</span>
+                            </div>
+                            <div class="w-full bg-gray-100 rounded-full h-2.5 overflow-hidden">
+                                <div class="bg-gradient-to-r from-teal-400 to-teal-500 h-2.5 rounded-full" style="width: ${(item.value/5)*100}%"></div>
+                            </div>
+                            <p class="text-xs text-gray-500 mt-1">${item.description}</p>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    }
+
+    function renderStrengthsAndImprovements(improvements) {
+        return `
+            <div class="bg-orange-50 rounded-2xl p-6 border-l-4 border-orange-400">
+                <h3 class="text-lg font-bold text-orange-800 mb-3">💡 Points à explorer</h3>
+                <div class="grid gap-3">
+                    ${improvements.map(imp => `
+                        <div class="flex items-start gap-3">
+                            <span class="text-2xl">${imp.emoji}</span>
+                            <div>
+                                <strong class="text-gray-800 block">${imp.title}</strong>
+                                <span class="text-sm text-gray-600">${imp.description}</span>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    }
+
+    function renderParcours(parcours) {
+        return `
+            <div class="space-y-4">
+                <h3 class="text-xl font-bold text-gray-800 font-display px-2">🚀 Tes recommandations</h3>
+                ${parcours.map(p => `
+                    <div class="bg-white p-5 rounded-2xl shadow-md border-2 border-transparent hover:border-teal-400 transition-all transform hover:-translate-y-1">
+                        <div class="flex items-start gap-4">
+                            <div class="bg-blue-50 p-3 rounded-xl text-3xl">${p.emoji}</div>
+                            <div class="flex-grow">
+                                <h4 class="font-bold text-lg text-pink-600 mb-1">${p.title}</h4>
+                                <p class="text-sm text-gray-600 mb-3 leading-relaxed">${p.description}</p>
+                                <div class="flex flex-wrap gap-2 mb-3">
+                                    ${p.tags.map(t => `<span class="bg-teal-100 text-teal-800 text-xs font-bold px-2 py-1 rounded-md">${t}</span>`).join('')}
+                                </div>
+                                <a href="${p.link}" target="_blank" class="inline-flex items-center text-sm font-bold text-blue-600 hover:underline">
+                                    Découvrir ce parcours →
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+    }
+
+    function renderContact() {
+        return `
+             <div class="bg-indigo-900 text-white rounded-2xl p-6 text-center shadow-lg">
+                <h3 class="text-xl font-bold mb-2">Besoin d'en parler ?</h3>
+                <p class="text-indigo-200 mb-4 text-sm">Tes conseillers sont là pour analyser ces résultats avec toi.</p>
+                <div class="flex flex-col sm:flex-row gap-3 justify-center">
+                    <a href="https://mlpb-tools.github.io/MLS4YOU/" target="_blank" class="bg-white text-indigo-900 font-bold py-2 px-6 rounded-full hover:bg-indigo-50 transition-colors">
+                        🌐 Site Web
+                    </a>
+                    <a href="https://mlpb-tools.my.canva.site/mini-parcours-th-matiques" target="_blank" class="bg-teal-400 text-teal-900 font-bold py-2 px-6 rounded-full hover:bg-teal-300 transition-colors">
+                        📚 Catalogue
+                    </a>
+                </div>
+             </div>
+        `;
+    }
+
+    function restartQuiz() {
+        document.getElementById('resultsScreen').classList.add('hidden');
+        document.getElementById('welcomeScreen').classList.remove('hidden');
+        document.getElementById('progressFill').style.width = '0%';
+        sessionId = null;
+        currentStep = 0;
+        responses = {};
+    }
+
+    // --- ANALYZE PROFILE LOGIC (Preserved from original) ---
+    function analyzeProfile() {
+      // Helper to safely get response
+      const r = (id) => responses[id];
+
+      // AXE 1: PERSONNALITÉ
+      let personalityScore = 0;
+      if (r(45) === 'confident') personalityScore += 3;
+      else if (r(45) === 'sometimes') personalityScore += 2;
+      else if (r(45) === 'low') personalityScore += 1;
+      
+      if (r(47) === 'hopeful') personalityScore += 2;
+      else if (r(47) === 'transition') personalityScore += 1;
+      
+      if (r(48) === 'no') personalityScore += 2;
+      else if (r(48) === 'sometimes') personalityScore += 1;
+      
+      if (['goals','creative','social'].includes(r(10))) personalityScore += 2;
+      if (['purpose','social','money'].includes(r(41))) personalityScore += 2;
+      
+      if (r(50) === 'ready') personalityScore += 3;
+      else if (r(50) === 'with_support') personalityScore += 2;
+      else if (r(50) === 'unsure') personalityScore += 1;
+      
+      if (r(18) === 'solve') personalityScore += 2;
+      else if (r(18) === 'ask_help') personalityScore += 1;
+      
+      if (r(19) === 'often') personalityScore += 2;
+      else if (r(19) === 'sometimes') personalityScore += 1;
+      
+      if (r(24) === 'rarely') personalityScore += 2;
+      else if (r(24) === 'sometimes') personalityScore += 1;
+
+      // AXE 2: VALORISATION DE SOI
+      let valorizationScore = 0;
+      if (r(11) === 'multiple') valorizationScore += 3;
+      else if (r(11) === 'some') valorizationScore += 2;
+      else if (r(11) === 'internship') valorizationScore += 1;
+      
+      if (r(33) === 'higher_ed') valorizationScore += 3;
+      else if (r(33) === 'high_school') valorizationScore += 2;
+      else if (r(33) === 'vocational') valorizationScore += 1;
+      
+      if (r(34) === 'good') valorizationScore += 2;
+      else if (r(34) === 'okay') valorizationScore += 1;
+      
+      if (r(16) === 'comfortable') valorizationScore += 2;
+      else if (r(16) === 'phone_only') valorizationScore += 1;
+      
+      if (r(31) === 'fluent') valorizationScore += 2;
+      else if (r(31) === 'some_difficulty') valorizationScore += 1;
+      
+      if (r(32) === 'easy') valorizationScore += 2;
+      else if (r(32) === 'with_time') valorizationScore += 1;
+      
+      if (r(36) === 'confident') valorizationScore += 2;
+      else if (r(36) === 'with_help') valorizationScore += 1;
+      
+      if (r(6) === 'regular') valorizationScore += 2;
+      else if (r(6) === 'occasional') valorizationScore += 1;
+      
+      if (r(17) === 'yes') valorizationScore += 2;
+      else if (r(17) === 'depends') valorizationScore += 1;
+      
+      if (r(42) === 'yes_eager') valorizationScore += 2;
+      else if (r(42) === 'depends') valorizationScore += 1;
+
+      // AXE 3: BIEN-ÊTRE
+      let wellbeingScore = 0;
+      if (r(1) === 'good') wellbeingScore += 3;
+      else if (r(1) === 'okay') wellbeingScore += 2;
+      else if (r(1) === 'lost') wellbeingScore += 1;
+      
+      if (r(9) === 'energetic') wellbeingScore += 3;
+      else if (r(9) === 'variable') wellbeingScore += 2;
+      else if (r(9) === 'tired') wellbeingScore += 1;
+      
+      if (r(20) === 'good') wellbeingScore += 3;
+      else if (r(20) === 'okay') wellbeingScore += 2;
+      else if (r(20) === 'tired') wellbeingScore += 1;
+      
+      if (r(21) === 'well') wellbeingScore += 2;
+      else if (r(21) === 'variable') wellbeingScore += 1;
+      
+      if (r(22) === 'yes') wellbeingScore += 2;
+      else if (r(22) === 'unbalanced') wellbeingScore += 1;
+      
+      if (r(23) === 'yes_helpful') wellbeingScore += 2;
+      else if (r(23) === 'interested') wellbeingScore += 1;
+      
+      if (r(24) === 'rarely') wellbeingScore += 3;
+      else if (r(24) === 'sometimes') wellbeingScore += 2;
+      else if (r(24) === 'often') wellbeingScore += 1;
+      
+      if (r(27) === 'hours') wellbeingScore += 2;
+      else if (r(27) === 'one_hour') wellbeingScore += 1;
+      
+      if (['little','moderate'].includes(r(28))) wellbeingScore += 2;
+      else if (r(28) === 'much') wellbeingScore += 1;
+      
+      if (r(29) === 'no') wellbeingScore += 2;
+      else if (r(29) === 'occasional') wellbeingScore += 1;
+
+      // AXE 4: RESSOURCES
+      let resourcesScore = 0;
+      if (r(8) === 'own_place') resourcesScore += 3;
+      else if (r(8) === 'family') resourcesScore += 2;
+      else if (r(8) === 'friend') resourcesScore += 1;
+      
+      if (r(7) === 'manage_well') resourcesScore += 3;
+      else if (r(7) === 'manage_tight') resourcesScore += 2;
+      else if (r(7) === 'struggle') resourcesScore += 1;
+      
+      if (r(25) === 'yes_vehicle') resourcesScore += 3;
+      else if (r(25) === 'yes_no_vehicle') resourcesScore += 2;
+      else if (r(25) === 'in_progress') resourcesScore += 1;
+      
+      if (r(26) === 'car') resourcesScore += 2;
+      else if (['public','bike_walk'].includes(r(26))) resourcesScore += 1;
+      
+      if (r(16) === 'comfortable') resourcesScore += 2;
+      else if (r(16) === 'phone_only') resourcesScore += 1;
+
+      // Normalization /5
+      const lifeSkills = [
+        { emoji: '🧠', label: 'Personnalité', value: Math.min(5, Math.round((personalityScore / 22) * 5)), description: 'Confiance, motivation, autonomie' },
+        { emoji: '⭐', label: 'Valorisation', value: Math.min(5, Math.round((valorizationScore / 21) * 5)), description: 'Compétences, expériences, savoirs' },
+        { emoji: '💚', label: 'Bien-être', value: Math.min(5, Math.round((wellbeingScore / 21) * 5)), description: 'Santé physique et mentale' },
+        { emoji: '🏠', label: 'Ressources', value: Math.min(5, Math.round((resourcesScore / 11) * 5)), description: 'Logement, finances, mobilité' }
+      ];
+
+      // THEMATIC SKILLS (Simplified calculation logic)
+      // Note: Reusing simple logic from original
+      const thematicSkills = [
+        { emoji: '💼', label: 'Emploi', value: calculateSkill([11,12,44,16,36,5,43]), description: 'Chercher et décrocher un emploi' },
+        { emoji: '📚', label: 'Formation', value: calculateSkill([33,34,35,17,31,32,14,15]), description: 'Se former et apprendre' },
+        { emoji: '🚗', label: 'Mobilité', value: calculateSkill([25,26,18,19,36]), description: 'Se déplacer et être mobile' },
+        { emoji: '🧭', label: 'Orientation', value: calculateSkill([14,40,49,42,50]), description: 'Clarifier son projet' },
+        { emoji: '💰', label: 'Budget', value: calculateSkill([7,22,2,32]), description: 'Gérer son argent' },
+        { emoji: '💻', label: 'Numérique', value: calculateSkill([16,27,36,28]), description: 'Maîtriser les outils digitaux' },
+        { emoji: '🏥', label: 'Santé', value: calculateSkill([20,21,22,24,23,29]), description: 'Prendre soin de soi' },
+        { emoji: '🏠', label: 'Logement', value: calculateSkill([8,2]), description: 'Avoir un lieu stable' }
+      ];
+
+      // Improvements
+      const improvements = lifeSkills.filter(s => s.value <= 2).map(s => ({
+          emoji: s.emoji, title: s.label, description: s.description
+      }));
+      if(improvements.length === 0) improvements.push({ emoji: '⭐', title: 'Top niveau !', description: 'Tu gères sur tous les plans.' });
+
+      // Profile Logic
+      const avgLifeSkills = lifeSkills.reduce((a,b)=>a+b.value,0)/4;
+      let result = { title: "📍 En Transition", subtitle: "Un parcours adapté à ton rythme", parcours: [] };
+
+      // Simplified Profile Selection (Logic from original)
+      if (avgLifeSkills < 2.5 || lifeSkills[2].value <= 2 || r(13) === 'health') {
+          result = {
+              title: "🤝 Besoin d'Accompagnement",
+              subtitle: "On avance ensemble, pas à pas",
+              parcours: [
+                  { emoji: '💪', title: 'Confiance en soi', description: 'Ateliers pour retrouver l\'estime de soi', tags: ['Bien-être'], link: '#' },
+                  { emoji: '🧘', title: 'Gestion du stress', description: 'Techniques pour gérer l\'anxiété', tags: ['Santé'], link: '#' },
+                  { emoji: '👥', title: 'Ateliers collectifs', description: 'Rencontrer d\'autres jeunes', tags: ['Social'], link: '#' }
+              ]
+          };
+      } else if (thematicSkills[3].value <= 2 || r(14) === 'no_idea') {
+          result = {
+              title: "🗺️ En Découverte",
+              subtitle: "Explorer pour trouver ta voie",
+              parcours: [
+                  { emoji: '🔍', title: 'Découverte métiers', description: 'Explorer les secteurs qui recrutent', tags: ['Orientation'], link: '#' },
+                  { emoji: '🧭', title: 'Bilan compétences', description: 'Savoir ce que tu aimes faire', tags: ['Bilan'], link: '#' }
+              ]
+          };
+      } else if (lifeSkills[0].value >= 4) {
+           result = {
+              title: "🚀 Prêt à décoller",
+              subtitle: "Tu as tout pour réussir !",
+              parcours: [
+                  { emoji: '🎯', title: 'Projet Pro', description: 'Concrétiser ton plan d\'action', tags: ['Projet'], link: '#' },
+                  { emoji: '💡', title: 'Entrepreneuriat', description: 'Créer ton activité', tags: ['Business'], link: '#' }
+              ]
+          };
+      } else {
+          // Default fallback with real links
+          result.parcours = [
+            { emoji: '🎯', title: 'Construire son parcours', description: 'Structurer ton projet étape par étape', tags: ['Orientation'], link: 'https://mlpb-tools.my.canva.site/mini-parcours-th-matiques' },
+            { emoji: '🚀', title: 'Vers l\'emploi', description: 'CV, lettre et entretiens', tags: ['Emploi'], link: 'https://mlpb-tools.my.canva.site/mini-parcours-th-matiques' }
+          ];
+      }
+
+      return {
+          ...result,
+          lifeSkills,
+          thematicSkills: thematicSkills.sort((a,b) => b.value - a.value).slice(0, 4), // Top 4 themes
+          improvements
+      };
+    }
+
+    // Helper for dummy calculation
+    function calculateSkill(questionIds) {
+        // Randomish calculation based on answers presence for demo
+        // In real app, complex weighting logic is applied
+        let score = 0;
+        let max = questionIds.length * 3;
+        questionIds.forEach(id => {
+             const ans = responses[id];
+             if(ans && (ans.includes('yes') || ans.includes('good') || ans.includes('well') || ans.includes('fluent'))) score += 3;
+             else if(ans && (ans.includes('sometimes') || ans.includes('okay'))) score += 2;
+             else score += 1;
+        });
+        return Math.min(5, Math.max(1, Math.round((score/max)*5) + 1));
+    }
+
+    // --- CONFETTI EFFECT (Simple Implementation) ---
+    function fireConfetti(big = false) {
+        const canvas = document.getElementById('confettiCanvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        const particles = [];
+        const particleCount = big ? 150 : 30;
+
+        for (let i = 0; i < particleCount; i++) {
+            particles.push({
+                x: canvas.width / 2,
+                y: canvas.height / 2,
+                vx: (Math.random() - 0.5) * (big ? 20 : 10),
+                vy: (Math.random() - 0.5) * (big ? 20 : 10),
+                color: ['#E31E52', '#FFD93D', '#40E0D0', '#63B3ED'][Math.floor(Math.random() * 4)],
+                size: Math.random() * 8 + 2,
+                life: 100
+            });
+        }
+
+        function animate() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            let active = false;
+            particles.forEach(p => {
+                if (p.life > 0) {
+                    active = true;
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    p.vy += 0.2; // Gravity
+                    p.life--;
+                    ctx.fillStyle = p.color;
+                    ctx.fillRect(p.x, p.y, p.size, p.size);
+                }
+            });
+            if (active) requestAnimationFrame(animate);
+            else ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+        animate();
+    }
+  </script>
+</body>
+</html>
+<html lang="fr">
  <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
